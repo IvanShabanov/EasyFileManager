@@ -39,6 +39,10 @@ class filemanager{
             case 'upload':
                     return $this->upload();
                 break;
+            case 'unzip':
+                    $this->unzip();
+                    return $this->show();
+                break;
             default:
                     return $this->show();
             break;
@@ -59,7 +63,15 @@ class filemanager{
     function cutSlashBegin($str) {
         return preg_replace('/^\//', "", $str); 
     }
-    
+    function unzip() {
+      $file_to_unzip = $_REQUEST['folder'].'/'.$_REQUEST['file'];
+      $zip = new ZipArchive;
+      $res = $zip->open($file_to_unzip);
+      if ($res === TRUE) {
+         $zip->extractTo($_REQUEST['folder'].'/');
+         $zip->close();
+      };
+    }
     function download(){
         $this->path = $this->cutSlashBegin($this->cutSlashEnd($_REQUEST['path']));
 
@@ -148,7 +160,8 @@ class filemanager{
         $folder_ico="data:image/gif;base64,R0lGODlhFgAWANU0AMWSLf/3kf/Ub//ge//rhd/f3//0jsyZNLOBG/b29v/MZ8uYM4ODg8jIyJpoAseUL25ubsmWMZxqBLB+GJ5sBoyMjP/mgcCNKKNxC8KPKrWCHb2KJbiFILqHIq58FplnAaBuCNypRKh2EN7e3vjFYNOgO0xMTO+8V+azTqVzDff396t5E7SBHLyJJLeEH7+MJ9bW1m1tbf//////mf///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAADQALAAAAAAWABYAAAaxQJpwSCwaj8ikcslsCg+LyKOQcNIOsqws06gysbPwTLbpuDSISUF1XAQMcLg266mMjhGCBcDvX1ocLAgIBUYPAwBzihYyGBVGAAIHYpRhJDMgEEYZCgszAaChoCczFDFGFwoAMwStrq0oMxKnRRsKLzMDuru6ITMOtEQdChwzAsfIxyUzH5pFBWgTHisiKRggFBIOHyYMRgkNDDHj5OUxDA1HCQUw7e7vMIVW8/T19kZBADs=";
         $file_ico="data:image/gif;base64,R0lGODlhFgAWAMQQAP///4aGhlVVVefn1ggICAAAmczMzJmZmYAAAAAA/wCAAMvLy//MMwD/////AP8AAP///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAABAALAAAAAAWABYAAAV1ICSOZGmeaKquZOC+8LEGQ23bh6AGQO/7B4AOxfv9coKhiQdrEhbKErPAKFivBCERELh6C9loi2vsDcJbngPRSwDO2hMTgHgAEo0EXDya03sKCntpNzdocgAEiouMcUtlZXwiAQaVlpeVkhBJnJ2eLKChoqMhADs=";
 
-        $html='<form action="'.$this->mod_url.'" method="POST"><ul>';
+        $html='<form action="'.$this->mod_url.'" method="POST">';
+        $html.= '<table>';
         $not_allowed=array();
         foreach ($list as $key => $item) {
             if ($item=='.') continue;
@@ -160,21 +173,36 @@ class filemanager{
             $link=(is_file($href) && !in_array($ext[count($ext)-1], $not_allowed)) ? $path.'/'.$item : '';
             
             $href=$this->mod_url.'?f='.(is_file($href) ? '&i=download' : '').'&path='.($item=='..' ? $back_path : $path.'/'.$item);
+            $item_info = '';
             if (is_file(ROOT.$path.'/'.$item)) {
               $ico = $file_ico;
+              $item_info = filesize(ROOT.$path.'/'.$item).' bytes </td><td> '.date('Y-m-d H:i:s', filemtime(ROOT.$path.'/'.$item)) ;
               if (preg_match('/.*\.(jpeg|jpg|bmp|gif|png)/', $item)) {
                 $ico = $path.'/'.$item;
+              }
+              $item_info .= '</td><td>';
+              if (preg_match('/.*\.(zip)/', $item)) {
+                $item_info .= '<a href="'.$this->mod_url.'?i=unzip&folder='.ROOT.$path.'&file='.$item.'">UnZIP</a>' ;
               }
             } else {
               $ico = $folder_ico;
             }
+            $html.= '<tr>';
+            $html.= '<td>';
             if ($item != '..') {
-              $html.= "<input type='checkbox' name='del[]' value='".$item."'>";
-            }  
-            $html.= '<img src="'.$ico.'" style="distplay: inline; max-width: 30px; height: 20px;">';
-            $html.= '<a href="'.$href.'">'.$item.'</a><br/>';
-        }
-        $html.='</ul><br/>
+              $html.= '<input type="checkbox" name="del[]" value="'.$item.'">';
+            }
+            $html.= '</td><td>';
+            $html.= '<img src="'.$ico.'" style="distplay: inline; max-width: 25px; max-height: 25px;">';
+            $html.= '</td><td>';
+            $html.= '<a href="'.$href.'">'.$item.'</a>' ;
+            $html.= '</td><td>';
+            $html.= $item_info;
+            $html.= '</td></tr>';
+
+
+        };
+        $html .= '</table>
             <input type="submit" value="Удалить отмеченые" onclick="return confirm(\'Отмеченные файлы будут безвозвратно удалены! Вы уверены?\');">
             <input type="hidden" name="i" value="delete">
             <input type="hidden" name="path" value="'.$_REQUEST['path'].'"></form>';
