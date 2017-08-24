@@ -43,6 +43,10 @@ class filemanager{
                     $this->unzip();
                     return $this->show();
                 break;
+            case 'zip':
+                    $this->zipfiles();
+                    return $this->show();
+                break;
             default:
                     return $this->show();
             break;
@@ -128,14 +132,37 @@ class filemanager{
        return $this->show();
     }
 
-
     function upload(){
         $this->path=str_replace('\\','/',$this->cutSlashBegin($this->cutSlashEnd($_REQUEST['path'])));
         copy($_FILES['file']['tmp_name'], ROOT.$this->path.'/'.basename($_FILES['file']['name']));
         return $this->show(array('Файл загружен','#22bb00'));
     }
-    
+
+    function zipfiles(){
+        $this->path=ROOT.str_replace('\\','/',$this->cutSlashBegin($this->cutSlashEnd($_REQUEST['path'])));
+        $zip = new ZipArchive;
+        $zipfilename = $_REQUEST['zipfilename'];
+        if (substr($zipfilename, 0 , -4) != '.zip') {
+          $zipfilename .= '.zip';
+        }
+        $res = $zip->open($zipfilename, ZipArchive::CREATE);
+
+        foreach ($_REQUEST['del'] as $key => $obj) {
+            if (is_file($this->path.'/'.$obj)) {
+                $zip->addFile($this->path.'/'.$obj);
+            } else {
+              foreach (glob($this->path.'/'.$obj.'/*.*') as $file) { /* Add appropriate path to read content of zip */
+                  $zip->addFile($file);
+              }
+            }
+        }
+        $zip->Close();
+        return $this->show(array('Отмеченные файлы заархивированны','#22bb00'));
+    }
+
+
     function delete(){
+      if ($_REQUEST['zipfilename'] == 'да') {
         $this->path=ROOT.str_replace('\\','/',$this->cutSlashBegin($this->cutSlashEnd($_REQUEST['path'])));
         foreach ($_REQUEST['del'] as $key => $obj) {
             if (is_file($this->path.'/'.$obj)) {
@@ -145,8 +172,10 @@ class filemanager{
             }
         }
         return $this->show(array('Отмеченные файлы удалены','#22bb00'));
+      }
+      return $this->show();
     }
-    
+
     function removeDirectory($dir) {
         if ($objs = glob($dir."/*")) {
            foreach($objs as $obj) {
@@ -203,8 +232,13 @@ class filemanager{
 
         };
         $html .= '</table>
-            <input type="submit" value="Удалить отмеченые" onclick="return confirm(\'Отмеченные файлы будут безвозвратно удалены! Вы уверены?\');">
-            <input type="hidden" name="i" value="delete">
+            <select name="i">
+              <option value="">Выберите действие</option>
+              <option value="zip">Архивировать отмеченные</option>
+              <option value="delete">Удалить отмеченные (в поле напишите "да")</option>
+            </select>
+            <input type="text" name="zipfilename" placeholder="Имя архива ZIP/Подтверждение">
+            <input type="submit" value="Выполнить">
             <input type="hidden" name="path" value="'.$_REQUEST['path'].'"></form>';
         return $html;
     }
@@ -236,6 +270,7 @@ $result = $fm->auto_run();
 	<head>
 		<title>Easy File manager</title>
 		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		
 	</head>		
 		<body>
     <?php echo $result; ?>
