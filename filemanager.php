@@ -146,14 +146,18 @@ class filemanager{
           $zipfilename .= '.zip';
         }
         $res = $zip->open($zipfilename, ZipArchive::CREATE);
-
         foreach ($_REQUEST['del'] as $key => $obj) {
+    
             if (is_file($this->path.'/'.$obj)) {
+               echo $this->path.'/'.$obj.'<br/>';
+
                 $zip->addFile($this->path.'/'.$obj);
             } else {
-              foreach (glob($this->path.'/'.$obj.'/*.*') as $file) { /* Add appropriate path to read content of zip */
-                  $zip->addFile($file);
-              }
+              echo $this->path.'/'.$obj.'/*.*'.'<br/>';
+              $zip->addGlob($this->path.'/'.$obj.'/*.*');
+//              foreach (glob($this->path.'/'.$obj.'/*.*') as $file) { /* Add appropriate path to read content of zip */
+//                  $zip->addFile($file);
+//              }
             }
         }
         $zip->Close();
@@ -182,7 +186,19 @@ class filemanager{
              is_dir($obj) ? $this->removeDirectory($obj) : unlink($obj);
            }
         }
-        rmdir($dir);
+        /*Для удаления файлов начинающихся на . */
+        $directory = $dir;
+          if ($handle = opendir($directory)) {
+            while (false !== ($file = readdir($handle))) {
+              if (is_file($directory.'/'.$file)) {
+                @unlink($directory.'/'.$file);
+              } else {
+                $this->removeDirectory($directory.'/'.$file);
+              }
+            }
+            closedir($handle);
+          }
+        @rmdir($dir);
     }
     
     function list_files($path,$list){
